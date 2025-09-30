@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小瑪莉水果盤 (Little Mary Fruit Machine)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: manipulation; /* 防止雙擊縮放 */
+        }
+        .font-arcade {
+            font-family: 'Press Start 2P', cursive;
+        }
+        /* 自訂霓虹燈光暈效果 */
+        .neon-shadow-yellow {
+            box-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fef08a, 0 0 20px #fef08a, 0 0 25px #fef08a, 0 0 30px #fef08a, 0 0 35px #fef08a;
+        }
+        .neon-shadow-blue {
+            box-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #60a5fa, 0 0 20px #60a5fa, 0 0 25px #60a5fa, 0 0 30px #60a5fa, 0 0 35px #60a5fa;
+        }
+        .bet-button {
+            transition: all 0.1s ease-in-out;
+        }
+        .bet-button:active {
+            transform: scale(0.9);
+        }
+        /* 防止文字選取 */
+        .noselect {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-500 text-white flex items-center justify-center min-h-screen p-4 noselect">
+
+    <!-- 主遊戲容器，使用 flex-wrap 實現響應式佈局 -->
+    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-start lg:justify-center p-4 gap-6">
+
+        <!-- 左側：遊戲盤面 -->
+        <div class="flex-grow flex-shrink bg-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 border-4 border-gray-800/50">
+            <!-- 標題 -->
+            <header class="text-center mb-4">
+                <h1 class="text-3xl sm:text-4xl font-bold text-yellow-300 font-arcade tracking-wider">小瑪莉</h1>
+                <p class="text-blue-300 font-sans">Slot Mechine</p>
+            </header>
+            
+            <!-- 遊戲盤面 -->
+            <div id="game-board" class="grid-container mb-4">
+                <!-- JS動態生成 -->
+            </div>
+        </div>
+
+        <!-- 右側：資訊與下注區 -->
+        <div class="flex-grow flex-shrink w-full lg:w-96 bg-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 border-4 border-gray-800/50 flex flex-col space-y-4">
+            <!-- 遊戲資訊顯示區 -->
+            <div class="grid grid-cols-2 gap-4 bg-black/50 p-3 rounded-lg text-center">
+                <div>
+                    <p class="text-sm text-gray-400">CREDITS</p>
+                    <p id="credits-display" class="text-2xl font-bold text-green-400">1000</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-400">TOTAL BET</p>
+                    <p id="total-bet-display" class="text-2xl font-bold text-red-400">0</p>
+                </div>
+                <div class="col-span-2 mt-2">
+                     <p id="message-display" class="h-6 text-lg text-yellow-300 font-bold truncate">&nbsp;</p>
+                </div>
+            </div>
+
+            <div class="bg-black/50 p-3 rounded-lg">
+                <h2 class="text-center text-lg font-bold mb-3 text-blue-300">下注區</h2>
+                <div id="betting-controls" class="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-3 gap-2">
+                    <!-- JS動態生成 -->
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex space-x-4">
+                <button id="clear-button" class="w-1/2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">清除</button>
+                <button id="start-button" class="w-1/2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">開始</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const SYMBOLS = {
+            apple:     { name: '蘋果', emoji: '🍎', payout: 2,  css: 'bg-red-500/80' },
+            bell:      { name: '鈴鐺', emoji: '🔔', payout: 5,  css: 'bg-yellow-500/80' },
+            watermelon:{ name: '西瓜', emoji: '🍉', payout: 10, css: 'bg-green-500/80' },
+            star:      { name: '星星', emoji: '⭐', payout: 20, css: 'bg-blue-500/80' },
+            seven:     { name: '７７', emoji: '７', payout: 40, css: 'bg-purple-500/80' },
+            bar:       { name: 'BAR', emoji: '👑', payout: 100, css: 'bg-pink-500/80' }
+        };
+
+        // 盤面配置 (20個位置)
+        const BOARD_LAYOUT = [
+            'apple', 'bell', 'watermelon', 'star', 'apple', 'seven', 'bar',
+            'bell', 'apple', 'watermelon', 'bell', 
+            'apple', 'star', 'apple', 'seven', 'bell', 'apple',
+            'watermelon', 'bell', 'apple'
+        ];
+        
+        const GRID_MAP = [
+            { r: 1, c: 1 }, { r: 1, c: 2 }, { r: 1, c: 3 }, { r: 1, c: 4 }, { r: 1, c: 5 }, { r: 1, c: 6 }, { r: 1, c: 7 },
+            { r: 2, c: 7 }, { r: 3, c: 7 }, { r: 4, c: 7 }, { r: 5, c: 7 },
+            { r: 5, c: 6 }, { r: 5, c: 5 }, { r: 5, c: 4 }, { r: 5, c: 3 }, { r: 5, c: 2 }, { r: 5, c: 1 },
+            { r: 4, c: 1 }, { r: 3, c: 1 }, { r: 2, c: 1 }
+        ];
+
+        // 遊戲狀態
+        let state = {
+            credits: 1000,
+            bets: {},
+            totalBet: 0,
+            isSpinning: false,
+            currentLightIndex: 0
+        };
+
+        // DOM 元素
+        const creditsDisplay = document.getElementById('credits-display');
+        const totalBetDisplay = document.getElementById('total-bet-display');
+        const messageDisplay = document.getElementById('message-display');
+        const gameBoard = document.getElementById('game-board');
+        const bettingControls = document.getElementById('betting-controls');
+        const clearButton = document.getElementById('clear-button');
+        const startButton = document.getElementById('start-button');
+        
+        let audioContext;
+        let isAudioInitialized = false;
+
+        // --- 音效處理 ---
+        function initAudio() {
+            if (isAudioInitialized) return;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                isAudioInitialized = true;
+            } catch (e) {
+                console.error("Web Audio API is not supported in this browser");
+            }
+        }
+
+        function playSound(freq, type = 'sine', duration = 0.1) {
+            if (!isAudioInitialized || !audioContext) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function playWinSound() {
+            playSound(523.25, 'triangle', 0.1); // C5
+            setTimeout(() => playSound(659.25, 'triangle', 0.1), 100); // E5
+            setTimeout(() => playSound(783.99, 'triangle', 0.1), 200); // G5
+            setTimeout(() => playSound(1046.50, 'triangle', 0.2), 300); // C6
+        }
+        
+        // --- 遊戲初始化 ---
+        function init() {
+            // 初始化賭注
+            for (const key in SYMBOLS) {
+                state.bets[key] = 0;
+            }
+            
+            createGameBoard();
+            createBettingControls();
+            
+            updateUI();
+
+            clearButton.addEventListener('click', handleClear);
+            startButton.addEventListener('click', handleStart);
+        }
+
+        // --- 建立遊戲介面 ---
+
+        function createGameBoard() {
+            gameBoard.innerHTML = '';
+            BOARD_LAYOUT.forEach((symbolKey, index) => {
+                if(symbolKey) {
+                    const symbol = SYMBOLS[symbolKey];
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${index}`;
+                    cell.className = `board-cell flex flex-col items-center justify-center rounded-lg p-1 text-center transition-all duration-100 ${symbol.css}`;
+                    cell.style.gridRow = GRID_MAP[index].r;
+                    cell.style.gridColumn = GRID_MAP[index].c;
+                    cell.innerHTML = `
+                        <div class="text-2xl sm:text-3xl">${symbol.emoji}</div>
+                        <div class="text-xs font-bold">${symbol.name}</div>
+                        <div class="text-xs font-bold">x${symbol.payout}</div>
+                    `;
+                    gameBoard.appendChild(cell);
+                }
+            });
+            // 中央Logo
+            const logoCell = document.createElement('div');
+            logoCell.className = "flex items-center justify-center bg-black/70 rounded-lg";
+            logoCell.style.gridArea = "2 / 2 / 5 / 7";
+            logoCell.innerHTML = `<div class="font-arcade text-yellow-300 text-3xl sm:text-5xl tracking-widest">BAR</div>`;
+            gameBoard.appendChild(logoCell);
+        }
+
+        function createBettingControls() {
+            bettingControls.innerHTML = '';
+            for (const key in SYMBOLS) {
+                const symbol = SYMBOLS[key];
+                const control = document.createElement('div');
+                control.className = `flex flex-col items-center justify-center bg-gray-700 p-2 rounded-lg`;
+                control.innerHTML = `
+                    <div class="flex items-center justify-center mb-1">
+                        <span class="text-xl">${symbol.emoji}</span>
+                        <span class="ml-1 text-xs font-bold">${symbol.name}</span>
+                    </div>
+                    <div id="bet-${key}" class="text-lg font-bold text-yellow-300 h-6">0</div>
+                    <div class="flex flex-col w-full mt-1 space-y-1">
+                        <button data-symbol="${key}" data-amount="1" class="bet-change-button w-full bg-blue-600 rounded-md font-bold text-base py-0.5 bet-button">+</button>
+                        <button data-symbol="${key}" data-amount="-1" class="bet-change-button w-full bg-red-600 rounded-md font-bold text-base py-0.5 bet-button">-</button>
+                    </div>
+                `;
+                bettingControls.appendChild(control);
+            }
+
+            document.querySelectorAll('.bet-change-button').forEach(button => {
+                button.addEventListener('click', handleBetChange);
+            });
+        }
+        
+        // --- 更新UI ---
+        function updateUI() {
+            creditsDisplay.textContent = state.credits;
+            state.totalBet = Object.values(state.bets).reduce((sum, val) => sum + val, 0);
+            totalBetDisplay.textContent = state.totalBet;
+
+            for (const key in state.bets) {
+                const betDisplay = document.getElementById(`bet-${key}`);
+                if (betDisplay) {
+                    betDisplay.textContent = state.bets[key];
+                }
+            }
+        }
+
+        // --- 事件處理 ---
+        function handleBetChange(event) {
+            if (state.isSpinning) return;
+            initAudio(); // 首次互動時啟用音效
+            playSound(440, 'triangle', 0.05); // A4 click
+            const { symbol, amount } = event.target.dataset;
+            const change = parseInt(amount, 10);
+            const newBet = state.bets[symbol] + change;
+
+            if (newBet >= 0) {
+                 if (change > 0 && state.totalBet + change > state.credits) {
+                    showMessage('信用點數不足!');
+                    return;
+                }
+                state.bets[symbol] = newBet;
+                updateUI();
+            }
+        }
+        
+        function handleClear() {
+            if (state.isSpinning) return;
+            initAudio();
+            playSound(330, 'triangle', 0.05); // E4 click
+            for (const key in state.bets) {
+                state.bets[key] = 0;
+            }
+            updateUI();
+            showMessage('賭注已清除');
+        }
+
+        function handleStart() {
+            if (state.isSpinning) return;
+            if (state.totalBet === 0) {
+                showMessage('請先下注!');
+                return;
+            }
+            if (state.totalBet > state.credits) {
+                showMessage('信用點數不足!');
+                return;
+            }
+            
+            initAudio();
+            playSound(261.63, 'sine', 0.1); // C4
+            setTimeout(() => playSound(392.00, 'sine', 0.1), 100); // G4
+
+            state.isSpinning = true;
+            state.credits -= state.totalBet;
+            updateUI();
+            showMessage('轉動中...');
+            
+            // 禁用按鈕
+            startButton.disabled = true;
+            startButton.classList.replace('bg-green-500', 'bg-gray-500');
+            startButton.classList.remove('hover:bg-green-600');
+            clearButton.disabled = true;
+
+            spin();
+        }
+
+        function showMessage(msg) {
+            messageDisplay.textContent = msg;
+        }
+
+        // --- 遊戲核心邏輯 ---
+        function spin() {
+            const minSpins = 3 * BOARD_LAYOUT.length;
+            const randomExtra = Math.floor(Math.random() * BOARD_LAYOUT.length);
+            const totalSteps = minSpins + randomExtra;
+            let currentStep = 0;
+            let interval = 50;
+
+            // 使用遞迴的 setTimeout 來建立一個穩定且可變速的計時器
+            function step() {
+                // 清除上一個燈光
+                const prevCell = document.getElementById(`cell-${state.currentLightIndex}`);
+                if (prevCell) {
+                    prevCell.classList.remove('neon-shadow-yellow');
+                }
+                
+                // 計算下一個位置 (此邏輯本身就是順時針)
+                state.currentLightIndex = (state.currentLightIndex + 1) % BOARD_LAYOUT.length;
+                
+                // 點亮新燈光
+                const currentCell = document.getElementById(`cell-${state.currentLightIndex}`);
+                if (currentCell) {
+                    currentCell.classList.add('neon-shadow-yellow');
+                }
+
+                playSound(200 + (currentStep % 10) * 10, 'square', 0.05);
+                currentStep++;
+                
+                // 檢查是否結束轉動
+                if (currentStep >= totalSteps) {
+                    endSpin();
+                    return; // 結束遞迴，停止轉動
+                }
+
+                // 轉動快結束時減速
+                if (currentStep > totalSteps - 10) {
+                    interval += 30;
+                } else if (currentStep > totalSteps - 20) {
+                    interval += 10;
+                }
+                
+                // 安排執行下一步
+                setTimeout(step, interval);
+            }
+
+            // 啟動轉動的第一步
+            step();
+        }
+
+        function endSpin() {
+            const winningIndex = state.currentLightIndex;
+            const winningSymbolKey = BOARD_LAYOUT[winningIndex];
+            const winningSymbolData = SYMBOLS[winningSymbolKey];
+            const betOnSymbol = state.bets[winningSymbolKey];
+            let winnings = 0;
+
+            if (betOnSymbol > 0) {
+                winnings = betOnSymbol * winningSymbolData.payout;
+                state.credits += winnings;
+            }
+
+            setTimeout(() => {
+                if (winnings > 0) {
+                    playWinSound();
+                    showMessage(`恭喜! 贏得 ${winnings} 點!`);
+                } else {
+                    playSound(220, 'sawtooth', 0.2);
+                    showMessage('再接再厲!');
+                }
+
+                const finalCell = document.getElementById(`cell-${winningIndex}`);
+                if (finalCell) {
+                    finalCell.classList.replace('neon-shadow-yellow', 'neon-shadow-blue');
+                }
+                
+                // 重新啟用按鈕
+                state.isSpinning = false;
+                startButton.disabled = false;
+                startButton.classList.replace('bg-gray-500', 'bg-green-500');
+                startButton.classList.add('hover:bg-green-600');
+                clearButton.disabled = false;
+
+                updateUI();
+                
+                // 2秒後清除藍色光暈
+                setTimeout(() => {
+                     if (finalCell) finalCell.classList.remove('neon-shadow-blue');
+                }, 2000);
+
+            }, 500);
+        }
+        
+        // --- 啟動遊戲 ---
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
