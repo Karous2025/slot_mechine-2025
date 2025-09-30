@@ -48,8 +48,8 @@
 </head>
 <body class="bg-gray-500 text-white flex items-center justify-center min-h-screen p-4 noselect">
 
-    <!-- 主遊戲容器，使用 flex-wrap 實現響應式佈局 -->
-    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-start lg:justify-center p-4 gap-6">
+    <!-- 主遊戲容器：移除 lg:items-start 以確保左右兩側在 lg 螢幕上同高 (stretch) -->
+    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:justify-center p-4 gap-6">
 
         <!-- 左側：遊戲盤面 -->
         <div class="flex-grow flex-shrink bg-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 border-4 border-gray-800/50">
@@ -65,7 +65,7 @@
             </div>
         </div>
 
-        <!-- 右側：資訊與下注區 -->
+        <!-- 右側：資訊與下注區 (會自動拉伸至左側高度) -->
         <div class="flex-grow flex-shrink w-full lg:w-96 bg-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 border-4 border-gray-800/50 flex flex-col space-y-4">
             <!-- 遊戲資訊顯示區 -->
             <div class="grid grid-cols-2 gap-4 bg-black/50 p-3 rounded-lg text-center">
@@ -238,10 +238,12 @@
                         <span class="text-xl">${symbol.emoji}</span>
                         <span class="ml-1 text-xs font-bold">${symbol.name}</span>
                     </div>
-                    <div id="bet-${key}" class="text-lg font-bold text-yellow-300 h-6">0</div>
-                    <div class="flex flex-col w-full mt-1 space-y-1">
-                        <button data-symbol="${key}" data-amount="1" class="bet-change-button w-full bg-blue-600 rounded-md font-bold text-base py-0.5 bet-button">+</button>
-                        <button data-symbol="${key}" data-amount="-1" class="bet-change-button w-full bg-red-600 rounded-md font-bold text-base py-0.5 bet-button">-</button>
+                    <!-- 賭注數字方框化，添加底色與邊框 -->
+                    <div id="bet-${key}" class="text-lg font-bold text-yellow-300 bg-gray-900/70 border border-yellow-400 rounded-md px-2 py-0.5 my-1 w-full text-center">0</div>
+                    <!-- 將 flex-col space-y-1 更改為 flex space-x-1，並使用 flex-1 讓按鈕平均分配空間 -->
+                    <div class="flex w-full mt-1 space-x-1">
+                        <button data-symbol="${key}" data-amount="1" class="bet-change-button flex-1 bg-blue-600 rounded-md font-bold text-base py-0.5 bet-button">+</button>
+                        <button data-symbol="${key}" data-amount="-1" class="bet-change-button flex-1 bg-red-600 rounded-md font-bold text-base py-0.5 bet-button">-</button>
                     </div>
                 `;
                 bettingControls.appendChild(control);
