@@ -91,8 +91,8 @@
 
             <!-- 操作按鈕 -->
             <div class="flex space-x-4">
-                <button id="clear-button" class="w-1/2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">清除</button>
-                <button id="start-button" class="w-1/2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">開始</button>
+                <button id="clear-button" aria-label="清除所有賭注" class="w-1/2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">清除</button>
+                <button id="start-button" aria-label="開始轉動" class="w-1/2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-3 rounded-lg text-xl shadow-lg transition duration-200 bet-button">開始</button>
             </div>
         </div>
 
@@ -123,9 +123,28 @@
             { r: 4, c: 1 }, { r: 3, c: 1 }, { r: 2, c: 1 }
         ];
 
+        // --- 遊戲設定與常數 ---
+        const MIN_SPIN_ROUNDS = 3; // 至少轉動的圈數
+        const EXTRA_SPIN_RANGE = BOARD_LAYOUT.length; // 額外隨機步數的最大範圍
+        const INITIAL_CREDITS = 1000; // 初始信用點數
+
+        // 音效設定 (頻率, 類型, 持續時間)
+        const SOUND_CONFIG = {
+            BET:     { freq: 440, type: 'triangle', duration: 0.05 },
+            CLEAR:   { freq: 330, type: 'triangle', duration: 0.05 },
+            START_1: { freq: 261.63, type: 'sine', duration: 0.1 },
+            START_2: { freq: 392.00, type: 'sine', duration: 0.1 },
+            SPIN_TICK_BASE: 200, // 轉動音效的基礎頻率
+            WIN_1:   { freq: 523.25, type: 'triangle', duration: 0.1 }, // C5
+            WIN_2:   { freq: 659.25, type: 'triangle', duration: 0.1 }, // E5
+            WIN_3:   { freq: 783.99, type: 'triangle', duration: 0.1 }, // G5
+            WIN_4:   { freq: 1046.50, type: 'triangle', duration: 0.2 }, // C6
+            LOSE:    { freq: 220, type: 'sawtooth', duration: 0.2 }
+        };
+
         // 遊戲狀態
         let state = {
-            credits: 1000,
+            credits: INITIAL_CREDITS,
             bets: {},
             totalBet: 0,
             isSpinning: false,
@@ -177,10 +196,11 @@
         }
 
         function playWinSound() {
-            playSound(523.25, 'triangle', 0.1); // C5
-            setTimeout(() => playSound(659.25, 'triangle', 0.1), 100); // E5
-            setTimeout(() => playSound(783.99, 'triangle', 0.1), 200); // G5
-            setTimeout(() => playSound(1046.50, 'triangle', 0.2), 300); // C6
+            const { WIN_1, WIN_2, WIN_3, WIN_4 } = SOUND_CONFIG;
+            playSound(WIN_1.freq, WIN_1.type, WIN_1.duration);
+            setTimeout(() => playSound(WIN_2.freq, WIN_2.type, WIN_2.duration), 100);
+            setTimeout(() => playSound(WIN_3.freq, WIN_3.type, WIN_3.duration), 200);
+            setTimeout(() => playSound(WIN_4.freq, WIN_4.type, WIN_4.duration), 300);
         }
         
         // --- 遊戲初始化 ---
@@ -242,8 +262,8 @@
                     <div id="bet-${key}" class="text-lg font-bold text-yellow-300 bg-gray-900/70 border border-yellow-400 rounded-md px-2 py-0.5 my-1 w-full text-center">0</div>
                     <!-- 將 flex-col space-y-1 更改為 flex space-x-1，並使用 flex-1 讓按鈕平均分配空間 -->
                     <div class="flex w-full mt-1 space-x-1">
-                        <button data-symbol="${key}" data-amount="1" class="bet-change-button flex-1 bg-blue-600 rounded-md font-bold text-base py-0.5 bet-button">+</button>
-                        <button data-symbol="${key}" data-amount="-1" class="bet-change-button flex-1 bg-red-600 rounded-md font-bold text-base py-0.5 bet-button">-</button>
+                        <button data-symbol="${key}" data-amount="1" aria-label="增加 ${symbol.name} 賭注" class="bet-change-button flex-1 bg-blue-600 rounded-md font-bold text-base py-0.5 bet-button">+</button>
+                        <button data-symbol="${key}" data-amount="-1" aria-label="減少 ${symbol.name} 賭注" class="bet-change-button flex-1 bg-red-600 rounded-md font-bold text-base py-0.5 bet-button">-</button>
                     </div>
                 `;
                 bettingControls.appendChild(control);
@@ -272,7 +292,8 @@
         function handleBetChange(event) {
             if (state.isSpinning) return;
             initAudio(); // 首次互動時啟用音效
-            playSound(440, 'triangle', 0.05); // A4 click
+            const { freq, type, duration } = SOUND_CONFIG.BET;
+            playSound(freq, type, duration);
             const { symbol, amount } = event.target.dataset;
             const change = parseInt(amount, 10);
             const newBet = state.bets[symbol] + change;
@@ -290,7 +311,8 @@
         function handleClear() {
             if (state.isSpinning) return;
             initAudio();
-            playSound(330, 'triangle', 0.05); // E4 click
+            const { freq, type, duration } = SOUND_CONFIG.CLEAR;
+            playSound(freq, type, duration);
             for (const key in state.bets) {
                 state.bets[key] = 0;
             }
@@ -310,8 +332,9 @@
             }
             
             initAudio();
-            playSound(261.63, 'sine', 0.1); // C4
-            setTimeout(() => playSound(392.00, 'sine', 0.1), 100); // G4
+            const { START_1, START_2 } = SOUND_CONFIG;
+            playSound(START_1.freq, START_1.type, START_1.duration);
+            setTimeout(() => playSound(START_2.freq, START_2.type, START_2.duration), 100);
 
             state.isSpinning = true;
             state.credits -= state.totalBet;
@@ -333,50 +356,57 @@
 
         // --- 遊戲核心邏輯 ---
         function spin() {
-            const minSpins = 3 * BOARD_LAYOUT.length;
-            const randomExtra = Math.floor(Math.random() * BOARD_LAYOUT.length);
-            const totalSteps = minSpins + randomExtra;
+            // --- 計算轉動總步數 ---
+            // 為了讓玩家感覺每次轉動都是隨機的，我們設定一個最小圈數再加上一個隨機步數。
+            const minSteps = MIN_SPIN_ROUNDS * BOARD_LAYOUT.length;
+            const randomExtraSteps = Math.floor(Math.random() * EXTRA_SPIN_RANGE);
+            const totalSteps = minSteps + randomExtraSteps;
+            
             let currentStep = 0;
-            let interval = 50;
+            let interval = 50; // 初始速度 (毫秒)
 
-            // 使用遞迴的 setTimeout 來建立一個穩定且可變速的計時器
+            // --- 使用遞迴的 setTimeout 來建立一個穩定且可變速的計時器 ---
+            // 相比 setInterval，遞迴的 setTimeout 能更好地控制每次執行的間隔，特別是在需要動態改變速度時。
             function step() {
-                // 清除上一個燈光
+                // 1. 清除上一個燈光效果
                 const prevCell = document.getElementById(`cell-${state.currentLightIndex}`);
                 if (prevCell) {
                     prevCell.classList.remove('neon-shadow-yellow');
                 }
                 
-                // 計算下一個位置 (此邏輯本身就是順時針)
+                // 2. 計算並移動到下一個位置
                 state.currentLightIndex = (state.currentLightIndex + 1) % BOARD_LAYOUT.length;
                 
-                // 點亮新燈光
+                // 3. 點亮新的燈光
                 const currentCell = document.getElementById(`cell-${state.currentLightIndex}`);
                 if (currentCell) {
                     currentCell.classList.add('neon-shadow-yellow');
                 }
 
-                playSound(200 + (currentStep % 10) * 10, 'square', 0.05);
+                // 4. 播放轉動音效，頻率有輕微變化以增加動感
+                const tickSoundFreq = SOUND_CONFIG.SPIN_TICK_BASE + (currentStep % 10) * 10;
+                playSound(tickSoundFreq, 'square', 0.05);
+                
                 currentStep++;
                 
-                // 檢查是否結束轉動
+                // 5. 檢查是否結束轉動
                 if (currentStep >= totalSteps) {
-                    endSpin();
-                    return; // 結束遞迴，停止轉動
+                    endSpin(); // 呼叫結束處理函式
+                    return;    // 結束遞迴，停止轉動
                 }
 
-                // 轉動快結束時減速
+                // 6. 減速邏輯：在接近終點時，逐步增加間隔時間，製造減速效果
                 if (currentStep > totalSteps - 10) {
-                    interval += 30;
+                    interval += 30; // 最後10步，大幅減速
                 } else if (currentStep > totalSteps - 20) {
-                    interval += 10;
+                    interval += 10; // 接近終點的20步內，開始減速
                 }
                 
-                // 安排執行下一步
+                // 7. 安排下一次 step 的執行
                 setTimeout(step, interval);
             }
 
-            // 啟動轉動的第一步
+            // 啟動轉動程序
             step();
         }
 
@@ -397,7 +427,8 @@
                     playWinSound();
                     showMessage(`恭喜! 贏得 ${winnings} 點!`);
                 } else {
-                    playSound(220, 'sawtooth', 0.2);
+                    const { freq, type, duration } = SOUND_CONFIG.LOSE;
+                    playSound(freq, type, duration);
                     showMessage('再接再厲!');
                 }
 
